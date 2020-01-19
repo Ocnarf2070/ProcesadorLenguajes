@@ -1,0 +1,19 @@
+import java_cup.runtime.*;
+
+/* Terminals (tokens returned by the scanner). */
+terminal String IDENT, NUMERO;
+
+/* Non-terminals */
+non terminal s;
+non terminal String a;
+
+/* The grammar */
+s  ::= 	a:cad {: RESULT=cad; System.out.println(cad); :} ;
+a  ::= 	NUMERO:cad1 a:cad2  {: RESULT = new String(cad2 + " " + cad1); :}
+	|
+	IDENT:cad1 a:cad2  {: RESULT = new String(cad2 + " " + cad1); :}
+	| 
+	NUMERO:cad {: RESULT=cad; :}
+	| 
+	IDENT:cad {: RESULT=cad; :}
+	;

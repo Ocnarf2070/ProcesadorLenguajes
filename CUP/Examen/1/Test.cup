@@ -1,0 +1,29 @@
+import java_cup.runtime.*; 	
+
+/* Terminals (tokens RESULTed by the scanner). */
+terminal MAS, MENOS, POR, DIV, UMENOS;
+terminal Integer NUMERO;
+
+/* Non-terminals */
+non terminal s;
+non terminal Integer expr;
+
+/* Precedences */
+
+/* The grammar */
+s ::= expr:x {: RESULT=x; System.out.println(RESULT); :} ;
+expr ::= MAS expr:x1 expr:x2 
+	 {: RESULT = x1+x2; :}
+	 |
+	 MENOS expr:x1 expr:x2 
+	 {: RESULT = x1-x2; :}
+	 |
+	 POR expr:x1 expr:x2 
+	 {: RESULT = x1*x2; :}
+	 |
+	 DIV expr:x1 expr:x2 
+	 {: RESULT = x1/x2; :}
+	 |
+	 NUMERO:num
+	 {: RESULT = num; :}
+	 ;

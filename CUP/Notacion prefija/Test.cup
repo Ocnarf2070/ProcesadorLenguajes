@@ -1,0 +1,40 @@
+import java_cup.runtime.*;
+
+/* Terminals (tokens returned by the scanner). */
+
+terminal           MAS, MENOS, POR, DIV;
+terminal           AP, CP;
+terminal String   NUMERO;
+terminal String	   IDENT;
+
+/* Non-terminals */
+non terminal            s;
+non terminal String     expr,signo;
+
+/* Precedences */
+precedence left MAS, MENOS;
+precedence left POR, DIV;
+
+/* The grammar */
+s ::= expr:x {: RESULT=x; System.out.println(x); :} ;
+expr ::= NUMERO:x {: RESULT=x; :}
+	 |
+	 IDENT:str {: RESULT=str; :}
+	 |
+	 AP expr:x CP {: RESULT=x; :}
+	 |
+	 expr:x1 POR expr:x2 
+	 {: RESULT="* "+x1+" "+x2+" "; :}
+	 |
+	 expr:x1 DIV expr:x2 
+	 {: RESULT="/ "+x1+" "+x2+" "; :}
+	 |
+	 expr:x1 MAS expr:x2 
+	 {: RESULT="+ "+x1+" "+x2+" "; :}
+	 |
+	 expr:x1 MENOS expr:x2 
+	 {: RESULT="- "+x1+" "+x2+" "; :}
+	 |
+	 signo:sig expr:x {: RESULT=sig+" "+x; :}
+	 ;
+signo ::= MAS {: RESULT="+"; :} | MENOS {: RESULT="-"; :} ;

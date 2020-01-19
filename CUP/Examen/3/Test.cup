@@ -1,0 +1,30 @@
+import java_cup.runtime.*; 	
+
+/* Terminals (tokens RESULTed by the scanner). */
+terminal AC, CC, COMA;
+terminal Integer NUMERO;
+
+/* Non-terminals */
+non terminal s;
+non terminal String term, expr;
+
+/* Precedences */
+precedence left COMA;
+
+/* The grammar */
+s ::= term:x {: RESULT=x; System.out.println(RESULT); :} 
+      |
+      error
+      ;
+term ::= AC expr:x CC {: RESULT="["+x+"]"; :}
+	 |
+	 AC CC  {: RESULT="[NULL]"; :}
+	 ;
+expr ::= expr:x1 COMA expr:x2 {: RESULT=x1+","+x2; :}
+	 |
+	 AC expr:x CC {: RESULT=x; :}
+	 |
+	 NUMERO:x {: RESULT=Integer.toString(x); :}
+	 |
+	 AC CC  {: RESULT="NULL"; :}
+	 ;

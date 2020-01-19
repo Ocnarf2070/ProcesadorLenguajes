@@ -1,0 +1,38 @@
+import java_cup.runtime.*;
+import java.util.ArrayList;
+import java.util.List;
+
+/* Terminals (tokens returned by the scanner). */
+terminal INT, DOUBLE, PYC;
+terminal String IDENT;
+
+/* Non-terminals */
+non terminal s;
+non terminal String a, t;
+non terminal List<String> b;
+
+/* The grammar */
+s ::= 	a:str {: RESULT=new String(str); System.out.println(str); :} ;
+a ::= 	t:tipo b:lista PYC a:str {: String aux = "";
+			      for(String aux2 : lista){
+			      	aux+=aux2+":"+tipo+"; ";
+			      }
+			      RESULT=new String(aux+"\n"+str);
+			     :}
+	|
+	t:tipo b:lista PYC {: String aux = "";
+			      for(String aux2 : lista){
+			      	aux+=aux2+":"+tipo+"; ";
+			      }
+			      RESULT=new String(aux);
+			    :}
+	;
+t ::= 	INT {: RESULT = new String("int"); :} | DOUBLE {: RESULT = new String("double"); :} ;
+b ::= 	IDENT:x b:lista {: lista.add(0,x);
+			RESULT = lista; :}
+	|
+	IDENT:x {: List<String> list = new ArrayList<String>();
+		list.add(0,x);
+		RESULT = list; :}
+	;
+

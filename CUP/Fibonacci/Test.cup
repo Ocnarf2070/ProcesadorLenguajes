@@ -1,0 +1,45 @@
+import java_cup.runtime.*;
+
+action code {:
+	public static class A{
+	 private boolean fib;
+	 private int numAnt;
+	 private int suma;
+	 public A (boolean a, int b, int c){
+	 	fib=a;
+	 	numAnt=b;
+	 	suma=c;
+	 }
+	 public boolean Fib() {
+		return fib;
+	 }
+	 public int NumAnt() {
+	 	return numAnt;
+	 }
+	 public int Suma() {
+		return suma;
+	 }
+		 
+	}
+:}
+	 
+	
+
+/* Terminals (tokens RESULTed by the scanner). */
+terminal Integer NUMERO;
+
+/* Non-terminals */
+non terminal s;
+non terminal A a;
+
+/* The grammar */
+s ::= 	a:a1 {: RESULT=a1.Fib(); System.out.println(a1.Fib()?"SI":"NO"); :} ;
+a ::= 	a:a1 NUMERO:num 	
+	{: RESULT = new A(a1.Fib()&&a1.Suma()==num,num,a1.NumAnt()+num);
+	:}			 
+	|
+	NUMERO:num1 NUMERO:num2	
+	{: 
+	RESULT=new A(true,num2,num1+num2); 
+	:}
+	;

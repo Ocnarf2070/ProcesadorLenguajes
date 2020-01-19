@@ -1,0 +1,31 @@
+import java_cup.runtime.*;
+
+/* Terminals (tokens RESULTed by the scanner). */
+terminal INT, DOUBLE, PYC, COMA, DP;
+terminal String IDENT;
+
+/* Non-terminals */
+non terminal s;
+non terminal String a,b,var, val;
+
+/* The grammar */
+s ::= 	a:str {: RESULT = new String(str); System.out.println(RESULT); :} ;
+a ::= 	b:str1 PYC a:str2 
+	{: RESULT = str1+";\n"+str2; :}
+	|
+	b:str PYC
+	{: RESULT = str+";"; :}
+	;
+b ::=	var:str1 DP val:str2 
+	{: RESULT = str2+str1; :}
+	;
+val ::= INT {: RESULT = "int"; :}
+	|
+	DOUBLE {: RESULT = "double";  :}
+	;
+var ::= IDENT:str1 COMA var:str2 
+	{: RESULT = " "+str1+","+str2;  :}
+	|
+	IDENT:str 
+	{: RESULT = " "+str; :}
+	;
