@@ -1,0 +1,134 @@
+package prCalculadora;
+
+import java.io.File;
+import java.io.*;
+import java.util.*;
+
+public class Calculadora {
+
+	public static String [] operacion (String line) {
+		String line1 = line;
+		String [] op = new String [line.length()+1];
+		int tam = 0;
+		String num ="";
+		while(line1.length()!=0) {
+			char elem = line1.charAt(0);
+			if (Character.isDigit(elem))num+=elem;
+			else if(signoValido(elem)) {
+				if(elem == '-' &&Character.isDigit(line1.charAt(1))&&num=="") num+='-';
+				else if (elem == '(') {
+					op[tam]="(";
+					tam++;
+				}
+				else {
+					if(tam!=0&&op[tam-1].equals(")")) {
+						op[tam] = Character.toString(elem);
+						tam++;
+					}
+					else {
+						op[tam] = num;
+						num ="";
+						if(elem == '-' &&Character.isDigit(line1.charAt(1))) {
+							op[tam+1] = "+";
+							num+="-";
+						}
+						else op[tam+1] = Character.toString(elem);
+						tam+=2;
+					}
+				}
+			} else throw new NoSuchElementException();
+			line1 = line1.substring(1);
+		}
+		if(num!="")op[tam] = num;
+		tam+=2;
+		return op;
+	}
+	
+	private static boolean signoValido(char elem) {
+		// TODO Auto-generated method stub
+		return elem == '+' || elem == '-' || elem == '*'|| elem == '/' || elem == '(' || elem == ')';
+	}
+	private static int resultado(String [] fp) {
+		Stack<Integer> stack = new Stack<Integer>();
+		int i = 0;
+		while(fp[i]!=null) {
+			if(fp[i].equals("+")) {
+				int exp2 = stack.top();
+				stack.pop();
+				int exp1 = stack.top();
+				stack.pop();
+				stack.push(exp1+exp2);
+			}else if(fp[i].equals("-")) {
+				int exp2 = stack.top();
+				stack.pop();
+				int exp1 = stack.top();
+				stack.pop();
+				stack.push(exp1-exp2);
+			}else if(fp[i].equals("*")) {
+				int exp2 = stack.top();
+				stack.pop();
+				int exp1 = stack.top();
+				stack.pop();
+				stack.push(exp1*exp2);
+			}else if(fp[i].equals("/")) {
+				int exp2 = stack.top();
+				stack.pop();
+				int exp1 = stack.top();
+				stack.pop();
+				if(exp2 == 0)throw new IllegalArgumentException("el denominador no debe ser 0");
+				else stack.push(exp1/exp2);
+			}else stack.push(Integer.parseInt(fp[i]));
+			i++;
+		}
+		return (Integer) (stack.isEmpty()?" ":stack.top());
+	}
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		BinaryTree bt;
+		if(args.length==2) {
+			File in = new File(args[0]);
+			File out = new File(args[1]);
+			try {
+				Scanner sc = new Scanner (in);
+				PrintWriter pw = new PrintWriter(out);
+				while(sc.hasNextLine()) {
+					bt = new BinaryTree();
+					String line = sc.nextLine().replaceAll("\\s","");
+					String [] op = operacion (line);
+					String [] fp = bt.formaPolaca(op);
+					pw.println(resultado(fp));
+				}
+				pw.close();
+				sc.close();
+				
+			}catch(NoSuchElementException e){
+				
+			}catch(FileNotFoundException ee) {
+				System.err.println("Archivo no encontrado");
+			}
+			
+		}else if (args.length==0) {
+			try {
+				System.out.println("Introduzca la operacion:");
+				Scanner sc = new Scanner (System.in);
+				bt = new BinaryTree();
+				String line = sc.nextLine().replaceAll("\\s","");
+				sc.close();
+				String [] op = operacion (line);
+				String [] fp = bt.formaPolaca(op);
+				System.out.print(resultado(fp));
+				
+			}catch(NoSuchElementException e){
+				System.err.println("No tiene elementos validos");
+				e.printStackTrace();
+			}catch(IllegalArgumentException ee) {
+				System.err.println("Linea de calculo mal formada");
+				ee.printStackTrace();
+			}
+			
+		}
+		
+	}
+
+}

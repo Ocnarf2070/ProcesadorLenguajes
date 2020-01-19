@@ -1,0 +1,42 @@
+package prCalculadora;
+
+public class BinaryTree <K extends Comparable<? super K>> {
+	private static class Tree <E>{
+		E value;
+		Tree left;
+		Tree right;
+		public Tree(E value) {
+			this.value=value;
+			left=null;
+			right=null;
+			// TODO Auto-generated constructor stub
+		}
+		
+	}
+	
+	private Tree<K> root;
+	
+	public BinaryTree() {
+		root = null;
+		// TODO Auto-generated constructor stub
+	}
+	
+	public String formaPolaca (String line) {
+		while(line.length()!=0) {
+			String car="";
+			if(isDigit(line.charAt(0))) {
+				car+=line;
+			}else{
+				
+			}
+			line.substring(0);
+		}
+		return null;
+	}
+
+	private boolean isDigit(char charAt) {
+		// TODO Auto-generated method stub
+		return Character.isDigit(charAt);
+	}
+
+}

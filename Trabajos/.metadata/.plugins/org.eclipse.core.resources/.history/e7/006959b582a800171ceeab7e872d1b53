@@ -1,0 +1,14 @@
+package prCalculadora;
+
+public class BinaryTree <E>{
+	E expr;
+	BinaryTree<E> left;
+	BinaryTree<E> right;
+	public BinaryTree(E expr) {
+		this.expr=expr;
+		left=null;
+		right=null;
+		// TODO Auto-generated constructor stub
+	}
+
+}

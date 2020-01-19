@@ -1,0 +1,17 @@
+package prCalculadora;
+
+public class BinaryTree <E>{
+	E expr;
+	BinaryTree<E> left;
+	BinaryTree<E> right;
+	public BinaryTree(E expr) {
+		this.expr=expr;
+		left=null;
+		right=null;
+	}
+	public BinaryTree(E expr, BinaryTree<E> left, BinaryTree<E> right) {
+		this.expr=expr;
+		this.left=left;
+		this.right=right;
+	}
+}
