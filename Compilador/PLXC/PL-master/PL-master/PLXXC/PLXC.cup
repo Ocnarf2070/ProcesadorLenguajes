@@ -1,0 +1,726 @@
+import java_cup.runtime.*;
+import java.util.ArrayList;
+import java.util.List;
+
+action code {:
+	Variable var = new Variable(0,0);
+
+	ArrayList<Integer> dims = new ArrayList<Integer>();
+
+	ArrayList<String> dimsAsig = new ArrayList<String>();
+
+	/* New Types of vars */
+	ArrayList<String> tipos = new ArrayList<String>();
+	int newTipos = 10;
+
+	String switchVar = "";
+	String switchTag = "";
+	
+	int contCase = 0;
+
+	String tempQuest = "";
+:}
+
+parser code {:
+    @Override
+    public void report_error(String message, Object info){ // Syntax error handling message
+        Generador.error();
+	Generador.halt();
+    }
+:}
+
+/* Terminales */
+
+terminal 			INT;
+terminal			CHAR;
+terminal 			FLOAT;
+terminal			COMILLAS;
+terminal			CASINT, CASFLOAT;
+terminal 			AC, CC;
+terminal 			PYC, COMA, POR, AL, CL, ASIG, AP, CP, DOSPUNTOS;
+terminal 			MASEQ;
+terminal String 	IF, ELSE;
+terminal 			PRINT;
+terminal			TRUE, FALSE;
+terminal String 	DO, WHILE;
+terminal String		TO, STEP, DOWNTO, IN;
+terminal String 	FOR;
+terminal String		SWITCH;
+terminal String		CASE;
+terminal 			DEFAULT, BREAK;
+terminal	 		MASMAS;
+terminal 			DIR;
+terminal			PREINCR;
+terminal 			MENOSMENOS;
+terminal 			MAS, MENOS, NOT, DIV, MOD, UMINUS;
+terminal 			MEQ, MAQ, MEOQ, MAOQ;
+terminal 			EQ, NEQ;
+terminal 			AND;
+terminal 			OR;
+terminal String		QUESTION;
+terminal			TYPEDEF;
+
+terminal Integer 	NUMERO;
+terminal Double 	NUMEROF;
+terminal String 	IDENT;
+
+/* No terminales */
+
+non terminal 				listaSent;
+non terminal 				sent;
+non terminal 				elsePart;
+non terminal Tag 			cond;
+non terminal 				listaDec;
+non terminal 				dec;
+non terminal 				tipo;
+non terminal				character;
+non terminal String			break;
+non terminal String 		forInIdent;
+non terminal Object 		forArray;
+non terminal List<String>	arrayIni;
+non terminal ArrayList<Integer> dimensiones;
+non terminal ArrayList<String> dimensionesAsig;
+non terminal String 		incremento;
+non terminal String			variable, numero;
+non terminal String			asig;
+non terminal String			casting;
+non terminal String 		exp, stepPart;
+non terminal String			varOrNum;
+non terminal String 		case;
+non terminal String			listaCase;
+non terminal String			conditionalQuest;
+non terminal String 		typedefSent;
+
+/* Precedencia */
+
+precedence left         	COMA;
+precedence right        	ASIG, MASEQ;
+precedence right			QUESTION;
+precedence left         	OR;
+precedence left         	AND;
+precedence left         	EQ, NEQ;
+precedence left         	MEQ, MEOQ, MAQ, MAOQ;
+precedence left         	MAS, MENOS;
+precedence left         	POR, DIV, MOD;
+precedence right        	UMINUS, PREINCR, NOT, CASINT, CASFLOAT, DIR;
+precedence left         	MASMAS, MENOSMENOS, AC, CC, AP, CP;
+precedence nonassoc			IF, ELSE;
+
+
+/* Gramatica */
+
+listaSent	::=	sent
+		|	listaSent sent
+		;
+
+
+sent		::=			exp:e PYC			{: :}
+
+			|			IF:tagIf AP cond:c CP 		{: 
+														Generador.label(c.getV());
+													:}
+			
+						sent						{:
+														Generador.goTo(tagIf);
+														Generador.label(c.getF());
+													:}
+
+						elsePart					{:
+														Generador.label(tagIf);
+													:}
+
+			|			WHILE:tagWhile AP			{:
+														Generador.label(tagWhile);
+													:}
+
+						cond:c CP					{:
+														Generador.label(c.getV());
+													:}
+
+						sent						{:
+														Generador.goTo(tagWhile);
+														Generador.label(c.getF());
+													:}
+
+			|			DO:tagDo					{:
+														Generador.label(tagDo);
+													:}
+
+						sent						{: :}
+
+						WHILE AP cond:c CP PYC		{:
+														Generador.label(c.getV());
+														Generador.goTo(tagDo);
+														Generador.label(c.getF());
+													:}
+
+			|			FOR:tagFor AP exp:e1 PYC	{:
+														Generador.label(tagFor);
+													:}
+
+						cond:c1 PYC					{:
+														RESULT = Generador.getTag();
+														Generador.label(RESULT.toString());
+													:}
+
+						exp:e2 CP					{:
+														Generador.goTo(tagFor);
+														Generador.label(c1.getV());
+													:}
+
+								sent				{:
+														Generador.goTo(RESULT.toString());
+														Generador.label(c1.getF());
+													:}
+
+			|			FOR:tagFor exp:e1			{:
+								
+													:}
+
+						TO:tagTo exp:e2				{:
+														Generador.label(tagFor);
+														RESULT = Generador.condition(e2, Tag.MEQ, e1);
+														Generador.label(tagTo);
+													:}
+
+						stepPart:p DO				{:
+														Generador.assignment(Var.getVar(e1), e1 + " + " + p);
+                                                        Generador.goTo(tagFor);
+                                                        Generador.label(((Tag)RESULT).getF());
+													:}
+			
+						sent						{:
+														Generador.goTo(tagTo);
+														Generador.label(((Tag)RESULT).getV());
+													:}
+
+			|			FOR:tagFor exp:e1			{:
+								
+													:}
+
+						DOWNTO:tagD exp:e2			{:
+														Generador.label(tagFor);
+														RESULT = Generador.condition(e1, Tag.MEQ, e2);
+                                                        Generador.label(tagD);
+													:}
+
+						stepPart:p DO				{:
+														Generador.assignment(Var.getVar(e1), e1 + " - " + p);
+                                                        Generador.goTo(tagFor);
+                                                        Generador.label(((Tag)RESULT).getF());
+													:}
+
+						sent						{:
+														Generador.goTo(tagD);
+														Generador.label(((Tag)RESULT).getV());
+													:}
+
+			|			FOR:tagFor forInIdent:e1	{:
+
+													:}
+	
+						IN:tagIN forArray:e2 DO		{:
+														RESULT = Generador.forIn(e1, tagFor, e2);
+													:}	
+			
+						sent						{:
+														Generador.goTo(tagFor);
+														Generador.label(((Tag)RESULT).getF());
+														Generador.label(tagIN);
+								
+													:}
+
+			|			SWITCH:tagS AP exp:v CP AL	{:
+															switchVar = v;
+															switchTag = tagS;
+														:}
+						
+						listaCase:l					{:
+														Generador.label(l);
+													:}
+
+						DEFAULT DOSPUNTOS			{:
+
+													:}
+
+						sent						{:
+
+													:}
+						CL							{:
+														Generador.label(switchTag);
+													:}
+			
+			
+		
+			|			PRINT AP exp:e1 CP PYC		{: 
+														Generador.print(e1); 
+													:}
+
+			|			AL 							{: 
+														Var.upLevel(); 
+													:}
+			
+						listaSent CL				{:
+														Var.clear(Var.getLevel()); 
+														Var.downLevel();
+													:}
+
+			|			typedefSent	PYC				{: :}
+
+			|			tipo listaDec PYC			{: :}
+			;	
+
+conditionalQuest	::=		AP cond:c CP			{:
+														Generador.label(c.getV());
+													:} 
+							
+							QUESTION:q exp:e1 		{:
+														tempQuest = Generador.getTemp(1);
+														Generador.assignment(tempQuest, e1);
+														Generador.goTo(q);
+														Generador.label(c.getF());
+													:}
+							
+							DOSPUNTOS exp:e2		{:
+														Generador.assignment(tempQuest, e2);
+														Generador.label(q);
+														RESULT = tempQuest;
+													:}
+
+					;
+
+forInIdent	::=			IDENT:i				{:
+												RESULT = i;
+											:}
+		
+			|	IDENT:i AC exp:e1 CC		{:
+												RESULT = i + "[" + e1 + "]";
+											:}
+			;
+
+case 		::=			CASE:c varOrNum:v DOSPUNTOS		{:
+															RESULT = Generador.getTag();
+															Generador.printLine("	if (" + switchVar + " != " + v + ")" + " goto " + c + ";");
+															if(contCase >= 1){
+																Generador.label(RESULT.toString());
+															}
+															contCase++;
+														:}
+
+						listaSent					{:
+
+													:}
+
+						break:b						{:
+														Generador.goTo(b);
+														Generador.label(c);
+														if(b.equals(switchTag)){
+															RESULT = Generador.getTag();
+														}
+														else{
+															RESULT = b;
+														}
+													:}
+
+			;
+
+break 		::=		BREAK PYC						{:
+														RESULT = switchTag;
+													:}
+
+			|										{:
+														RESULT = Generador.getTag();
+													:}
+			;
+
+listaCase	::=		case:c							{:
+														RESULT = c;
+													:}
+			
+			|		listaCase case:c				{:
+														RESULT = c;
+													:}
+			;
+
+varOrNum	::=		variable:i				{:
+												RESULT = i;
+											:}
+
+			|		numero:n				{:
+												RESULT = n;
+											:}
+			;
+
+stepPart	::=	STEP exp:e1					{:
+												RESULT = e1;
+											:}
+
+			|								{:
+												RESULT = "1";
+											:}
+
+			;
+
+forArray	::=	IDENT:i						{:
+												RESULT = i;
+											:}
+		
+			|	AL arrayIni:l CL			{:
+												RESULT = l;
+											:}
+
+			;
+
+tipo            ::=     INT                             {:
+															var = new Variable(Var.getLevel(), Variable.INTEGER); 
+														:}
+								
+                |       FLOAT                           {: 
+															var = new Variable(Var.getLevel(), Variable.REAL);
+														:}
+
+				|		CHAR							{:
+															var = new Variable(Var.getLevel(), Variable.CHAR);
+														:}
+                ;
+
+listaDec	::=	dec
+		|	listaDec COMA dec
+		;
+
+dec		::=		IDENT:i ASIG exp:e1		{:
+											Var.addVar(i, var);
+											Generador.assignment(Var.getVar(i), e1);
+										:}
+
+		|		IDENT:i					{:	
+											Var.addVar(i, var);
+										:}
+
+		|		IDENT:i ASIG character	{:
+
+										:}
+
+		| IDENT:i dimensiones:d ASIG exp:e1		{:
+													var.setIsArray(true);
+													var.setTam(d);
+													dims.clear();
+													Var.addVar(i, var);
+													Generador.assignment(Var.getVar(i), e1);
+												:}
+
+		| IDENT:i dimensiones:d ASIG AL arrayIni:e1 CL	{:
+															var.setIsArray(true);
+															var.setTam(d);
+															dims.clear();
+															Var.addVar(i, var);
+															RESULT = Generador.arrayInit(i, e1);
+														:}
+
+		|	IDENT:i dimensiones:d				{:
+													var.setIsArray(true);
+													var.setTam(d);
+													dims.clear();
+													Var.addVar(i, var);
+												:}
+
+		|	POR IDENT:i							{:
+													var.setIsPointer(true);
+													Var.addVar(i, var);
+												:}
+		;
+
+dimensiones	::=		AC NUMERO:n CC 				{:
+													dims.add(n);
+													RESULT = dims;
+												:}
+
+			|	dimensiones:d AC NUMERO:n CC		{:
+														dims.add(n);
+														RESULT = dims;
+													:}
+			;
+
+character	::=		COMILLAS IDENT:i COMILLAS		{:
+
+													:}
+			;
+
+typedefSent		::=		TYPEDEF tipo IDENT:i	{:
+													if(tipos.contains(i)){
+														Generador.error();
+														Generador.halt();
+													}
+													else{
+														tipos.add(i);
+													}
+												:}
+				;
+
+
+elsePart 	::= 	ELSE sent
+	   	|
+	   	;
+
+exp		::=	exp:e1 MAS exp:e2			{:	
+											RESULT = Generador.arithmetic(e1, e2, Generador.MAS);
+										:}
+
+		|	exp:e1 MENOS exp:e2			{:
+											RESULT = Generador.arithmetic(e1, e2, Generador.MENOS);
+										:}
+
+		|	exp:e1 POR exp:e2			{:
+											RESULT = Generador.arithmetic(e1, e2, Generador.MULT);
+										:}
+
+		| 	exp:e1 DIV exp:e2			{:
+											RESULT = Generador.arithmetic(e1, e2, Generador.DIV);
+										:}
+
+		|	exp:e1 MOD exp:e2			{:
+											String t1 = Generador.arithmetic(e1, e2, Generador.DIV);
+											String t2 = Generador.arithmetic(t1, e2, Generador.MULT);
+											RESULT = Generador.arithmetic(e1, t2, Generador.MENOS);
+										:}
+
+		| 	MENOS exp:e1				{:
+											RESULT = Generador.arithmetic("-" + e1, "", 0);
+										:} %prec UMINUS
+		
+		| 	AP exp:e1 CP				{:
+											RESULT = e1;
+										:}
+
+		|	conditionalQuest:q			{:
+											RESULT = q;
+										:}
+
+		|	casting:n					{: 
+											RESULT = n; 
+										:}
+
+		|	incremento:i				{:
+											RESULT = i;
+										:}
+		
+		|	asig:a						{:
+											RESULT = a;
+										:}
+
+		|	variable:v					{:
+											RESULT = v;
+										:}
+
+		|	numero:n					{:
+											RESULT = n;
+										:}
+
+		;
+
+numero		::=		NUMERO:n				{:
+												RESULT = n.toString();
+											:}
+		
+		|		NUMEROF:n					{:
+												RESULT = n.toString();
+											:}
+		;
+
+asig 		::= 	IDENT:i ASIG exp:e1 				{:
+															RESULT = Generador.assignment(Var.getVar(i), e1);
+                                                        :}
+
+		|		IDENT:i dimensionesAsig:a ASIG exp:e1	{:
+															RESULT = Generador.assignment(Var.getVar(i), a, e1);
+															dimsAsig.clear();
+														:}
+
+		|		IDENT:i ASIG AL arrayIni:a CL			{:
+															RESULT = Generador.arrayInit(i, a);
+														:}
+
+		|		IDENT:i MASEQ exp:e1					{:
+															RESULT = Generador.assignmentPlus(Var.getVar(i), e1);
+														:}
+
+		|		IDENT:i dimensionesAsig:a MASEQ exp:e1	{:
+															RESULT = Generador.assignmentPlus(Var.getVar(i), a, e1);
+															dimsAsig.clear();
+														:}
+
+		;
+
+dimensionesAsig 	::=		AC exp:e CC						{:
+																dimsAsig.add(e);
+																RESULT = dimsAsig;
+															:}
+
+					|		dimensionesAsig:a AC exp:e CC	{:
+																dimsAsig.add(e);
+																RESULT = dimsAsig;
+															:}
+
+					;
+
+arrayIni 			::=		exp:e							{:
+																RESULT = new ArrayList<String>();
+																RESULT.add(e);
+															:}
+
+					|	arrayIni:a COMA exp:e				{:
+																a.add(e);
+																RESULT = a;
+															:}
+					;
+
+variable	::=	IDENT:i					{:
+											if(Var.exists(i)){
+												RESULT = Var.getVar(i);
+                                            }
+                                            else{
+                                                Generador.error();
+                                                Generador.halt();
+                                            }
+										:}
+
+			|	IDENT:i AC exp:e CC		{:
+											if(Var.exists(i)){
+												String aux = Generador.getTemp(Var.getLastVar(i).getTipo());
+												Generador.assignment(aux , Var.getVar(i) + "[" + e + "]");
+												RESULT = aux;
+											}
+											else{
+												Generador.error();
+												Generador.halt();
+											}
+										:}
+
+			|	POR IDENT:i		{:
+									if(Var.getLastVar(i).isPointer()){
+										String aux = Generador.getTemp(Var.getLastVar(i).getTipo());
+										Generador.assignment(aux, "* " + Var.getVar(i));
+										RESULT = aux;
+									}
+									else{
+										Generador.error();
+										Generador.halt();
+									}
+								:}
+
+			|	DIR IDENT:i		{:
+									if(Var.exists(i)){
+										String aux = Generador.getTemp(Var.getLastVar(i).getTipo());
+										Generador.assignment(aux, "& " + Var.getVar(i));
+										RESULT = aux;
+									}
+									else{
+										Generador.error();
+										Generador.halt();
+									}
+								:}
+
+			;
+
+incremento	::=	MASMAS IDENT:i1                 {:
+                                                                RESULT = Generador.assignment(Var.getVar(i1), Var.getVar(i1) + " + " + "1");
+                                                        :} %prec PREINCR
+
+                |       IDENT:i1 MASMAS                 {:
+                                                                String temp = Generador.getTemp(Var.getLastVar(i1).getTipo());
+                                                                Generador.assignment(temp, Var.getVar(i1));
+                                                                Generador.assignment(Var.getVar(i1), Var.getVar(i1) + " + " + "1");
+                                                                RESULT = temp;
+                                                        :}
+
+                |       MENOSMENOS IDENT:i1             {:
+                                                                RESULT = Generador.assignment(Var.getVar(i1), Var.getVar(i1) + " - " + "1");
+                                                        :} %prec PREINCR
+
+                |       IDENT:i1 MENOSMENOS             {:
+                                                                String temp = Generador.getTemp(Var.getLastVar(i1).getTipo());
+                                                                Generador.assignment(temp, Var.getVar(i1));
+                                                                Generador.assignment(Var.getVar(i1), Var.getVar(i1) + " - " + "1");
+                                                                RESULT = temp;
+                                                        :}
+		;
+
+casting 	::=	CASINT exp:e 	{:
+									RESULT = Generador.casting(e, Variable.INTEGER);
+								:}
+
+			| CASFLOAT varOrNum:n1 {: RESULT = Generador.casting(n1, Variable.REAL); :}
+          	
+			  DIV varOrNum:n2	{: 
+									String e2 = Generador.casting(n2, Variable.REAL); 
+									RESULT = Generador.arithmetic(RESULT, e2, Generador.DIV); 
+								:}
+			;
+
+cond 		::=	exp:e1 EQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.EQ, e2);
+							:}
+
+		|	exp:e1 NEQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.NEQ, e2);
+							:}
+
+		| 	exp:e1 MEQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.MEQ, e2);
+							:}
+
+		|	exp:e1 MEOQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.MEOQ, e2);
+							:}
+
+		| 	exp:e1 MAQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.MAQ, e2);
+							:}
+
+		| 	exp:e1 MAOQ exp:e2		{:
+								RESULT = Generador.condition(e1, Tag.MAOQ, e2);
+							:}
+
+		|	NOT cond:c			{:
+								String temp = c.getV();
+								c.setV(c.getF());
+								c.setF(temp);
+								RESULT = c;
+							:}
+	
+		| 	cond:c1 AND			{:
+								Generador.label(c1.getV());
+							:}
+
+			cond:c2				{:
+								Generador.label(c1.getF());
+								Generador.goTo(c2.getV());
+								RESULT = c2;
+							:}
+
+		|	cond:c1 OR			{:
+								Generador.label(c1.getF());
+							:}
+
+			cond:c2				{:
+								Generador.label(c1.getV());
+								Generador.goTo(c2.getF());
+								RESULT = c2;
+							:}
+
+		|	AP cond:c CP	{:
+								RESULT = c;
+							:}
+
+		|	TRUE			{:
+								Tag tag = new Tag(Generador.getTag(), Generador.getTag());
+								Generador.goTo(tag.getV());
+								RESULT = tag;
+							:}
+
+		|	FALSE			{:
+								Tag tag = new Tag(Generador.getTag(), Generador.getTag());
+								Generador.goTo(tag.getF());
+								RESULT = tag;
+							:}
+		;

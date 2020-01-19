@@ -1,0 +1,14 @@
+
+import java_cup.runtime.*;
+
+
+/* Terminals (tokens returned by the scanner). */
+terminal String A;
+
+/* Non-terminals */
+non terminal 				s;
+non terminal String 		b;
+
+/* The grammar */
+s ::= b:a {: System.out.println(a); :};
+b ::= A:str {: RESULT=str; :};

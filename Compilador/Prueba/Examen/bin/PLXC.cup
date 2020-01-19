@@ -1,0 +1,272 @@
+
+import java_cup.runtime.*;
+import java.util.*;
+
+action code {:
+	boolean asigTipo=false;
+	EtiquetaDoble aux;
+:}
+
+/* Terminals (tokens returned by the scanner). */
+terminal INT,CHAR,CCHAR,CINT;
+terminal IF, ELSE, DO, WHILE, FOR, TO, DOWNTO, STEP, PRINT;
+terminal MAS, MENOS, POR, DIV, UMENOS,MOD, DMAS,DMENOS, CAMBIO;
+terminal AP, CP, AL, CL;	
+terminal IGUAL, PYC, COMA;
+terminal NOT, EQ, NEQ, LE, GE, LT, GT, AND, OR;
+terminal String   ENTERO,CHARACTER;
+terminal String	   IDENT;
+terminal EPSILON;
+
+/* Non-terminals */
+non terminal 				Programa;
+non terminal 		     	Sentencia, Lista_de_sent,Sentencia_comp,Sentencia_simp;
+non terminal 		     	parteELSE;
+non terminal EtiquetaDoble	Condicion,AFor;
+non terminal String 		AIf,ADo,AWhile;
+non terminal String			Expresion, ExpresionAsig;
+non terminal Integer		List_declar_var, Tipo;
+non terminal Boolean 		Modo;
+non terminal String			Pasos,Variable;
+
+/* Precedences */
+precedence right EPSILON;
+precedence right ELSE;
+precedence right OR; 
+precedence right AND;
+precedence nonassoc EQ, NEQ, LE, GE, LT, GT;
+precedence left MAS, MENOS;
+precedence left POR, DIV,MOD;
+precedence left UMENOS;
+precedence left NOT,CAMBIO;
+
+/* The grammar */
+Programa ::= Lista_de_sent | error {: GenCod.error(); :} ;
+Lista_de_sent ::= 	//Epsilon
+					%prec EPSILON
+					|
+					Lista_de_sent Sentencia
+					;
+Sentencia ::=	Sentencia_simp | Sentencia_comp ;
+Sentencia_comp ::= 	AL {: TablaSimbolo.nuevoBloque(); :}
+					Lista_de_sent 
+					CL 
+					{:
+					TablaSimbolo.limpiar(TablaSimbolo.indice());
+					TablaSimbolo.finBloque();
+					:}
+					;
+Sentencia_simp ::=	
+				List_declar_var PYC {: asigTipo=false; :}
+				|
+				Expresion PYC  
+				|//sent_if
+				AIf:aif AP Condicion:cond {: GenCod.label(cond.v()); :}
+				CP Sentencia 
+				{: GenCod.goTo(aif); 
+				GenCod.label(cond.f()); 
+				:}
+				parteELSE {: GenCod.label(aif); :}
+				|//Sent_while
+				AWhile:awhile {: GenCod.label(awhile); :}
+				AP Condicion:c CP {: GenCod.label(c.v()); :}
+				Sentencia
+				{: GenCod.goTo(awhile);
+				   GenCod.label(c.f());
+				:}
+				|//Sent_do_while
+				ADo:ado {: GenCod.label(ado); :} 
+				Sentencia WHILE AP Condicion:c CP PYC
+				{: GenCod.label(c.v());
+				   GenCod.goTo(ado);
+				   GenCod.label(c.f());
+				:}
+				|//Sent_for
+				AFor:afor AP Expresion PYC {: GenCod.label(afor.v()); :}
+				Condicion:c PYC {: GenCod.label(afor.f()); :}
+				Expresion CP 
+				{: GenCod.goTo(afor.v());
+				   GenCod.label(c.v());
+				:}
+				Sentencia
+				{: GenCod.goTo(afor.f());
+				   GenCod.label(c.f());
+				:}
+				|
+				//Sent_for_to
+				AFor:f Expresion:exp1 Modo:m Expresion:exp2
+				{:
+				GenCod.label(f.v());
+				if(m) aux=GenCod.condicion(exp2,If.LT,exp1);
+				else aux=GenCod.condicion(exp1,If.LT,exp2);
+				GenCod.label(f.f());
+				:}
+				Pasos:num
+				{:
+				String paso = num==null?"1":num;
+				if(m)GenCod.asig(exp1,exp1+" + "+paso);
+				else GenCod.asig(exp1,exp1+" - "+paso);
+				GenCod.goTo(f.v());
+				GenCod.label(aux.v());
+				:}
+				DO Sentencia
+				{:
+				GenCod.goTo(f.f());
+				GenCod.label(aux.f() );
+				:}
+				|//Sent_print
+				PRINT AP Expresion:expr CP PYC 
+				{: 
+				GenCod.print(expr);				
+				:}
+				;	
+	
+List_declar_var ::= Tipo:type {: asigTipo=true; :} 
+					ExpresionAsig:id
+					{:
+					RESULT = type;
+					Simbolo sb = new Simbolo(null,type,TablaSimbolo.indice());
+					TablaSimbolo.addSimb(id,sb);
+					:}
+					|
+					List_declar_var:type COMA ExpresionAsig:id
+					{:
+					RESULT = type;
+					Simbolo sb = new Simbolo(null,type,TablaSimbolo.indice());
+					TablaSimbolo.addSimb(id,sb);
+					:}
+					;
+Tipo ::=	INT {: RESULT=Tipo.INT; :}	| CHAR {: RESULT=Tipo.CHAR; :};
+Modo ::= TO	
+		{:
+		RESULT = true;
+		:} 
+		| DOWNTO 
+		{:
+		RESULT = false;
+		:} 
+		;
+		
+AIf ::= IF {: RESULT= GenCod.getLabel(); :} ;
+ADo ::= DO {: RESULT=GenCod.getLabel(); :} ;
+AWhile ::= WHILE {: RESULT=GenCod.getLabel();; :} ;
+AFor ::= FOR {: RESULT=new EtiquetaDoble(GenCod.getLabel(),GenCod.getLabel()); :} ;
+Pasos ::= //Epsilon
+		| 
+		STEP Expresion:exp {: RESULT=exp; :} 
+		;
+parteELSE ::= 	//Epsilon
+				%prec EPSILON
+				|
+				ELSE Sentencia
+				;
+
+ExpresionAsig ::= Variable:id IGUAL Expresion:expr 
+					{:
+					if(asigTipo)GenCod.asigN(id,expr); 
+					else GenCod.asig(id,expr);
+					RESULT=id; 
+					:} 
+					|	Variable:id {: RESULT=id; :} ;
+//Tienes que fijarte si lo que buscas es parte de la signacion o no
+Variable ::= IDENT:id 
+				{: 
+				if(asigTipo) RESULT=id;
+				else{
+					if(TablaSimbolo.existe(id)) RESULT = id;
+					else GenCod.error();
+				}
+				:} ;
+Expresion ::=	ExpresionAsig:expr {: RESULT=expr; :}
+				|
+				CCHAR Expresion:var {: RESULT='0'+var;  :}
+				|
+				CINT Expresion:var {: if(var.length()>1&&var.charAt(0)=='0')var=var.substring(1); RESULT=var; :}
+				|
+				Expresion:exp1 MAS Expresion:exp2  
+				{: 
+				if(exp1.length()>1&&exp1.charAt(0)=='0')exp1=exp1.substring(1);
+				if(exp2.length()>1&&exp2.charAt(0)=='0')exp2=exp2.substring(1);
+				RESULT=GenCod.mas(exp1,exp2); :}
+				|
+				Expresion:exp1 MENOS Expresion:exp2 {: 
+				if(exp1.length()>1&&exp1.charAt(0)=='0')exp1=exp1.substring(1);
+				if(exp2.length()>1&&exp2.charAt(0)=='0')exp2=exp2.substring(1);
+				RESULT=GenCod.menos(exp1,exp2); :}
+				|
+				Expresion:exp1 POR Expresion:exp2 {: 
+				if(exp1.length()>1&&exp1.charAt(0)=='0')exp1=exp1.substring(1);
+				if(exp2.length()>1&&exp2.charAt(0)=='0')exp2=exp2.substring(1);
+				RESULT=GenCod.por(exp1,exp2); :}
+				|
+				Expresion:exp1 DIV Expresion:exp2 {: 
+				if(exp1.length()>1&&exp1.charAt(0)=='0')exp1=exp1.substring(1);
+				if(exp2.length()>1&&exp2.charAt(0)=='0')exp2=exp2.substring(1);
+				RESULT=GenCod.div(exp1,exp2); :}
+				|
+				MENOS Expresion:exp  {: 
+				if(exp.length()>1&&exp.charAt(0)=='0')exp=exp.substring(1);
+				RESULT=GenCod.mod("0",exp); :}
+				%prec UMENOS
+				|
+				Expresion:exp1 MOD Expresion:exp2 {: 
+				if(exp1.length()>1&&exp1.charAt(0)=='0')exp1=exp1.substring(1);
+				if(exp2.length()>1&&exp2.charAt(0)=='0')exp2=exp2.substring(1);
+				RESULT=GenCod.mod(exp1,exp2); :}
+				|
+				AP Expresion:exp CP {: RESULT=exp; :}
+				|
+				ENTERO:num {: RESULT=num; :}
+				|
+				CHARACTER:ch {: RESULT="0"+ch; :}
+				|
+				Variable:id DMAS {: GenCod.Double(id,"+",false); :}
+				|
+				DMAS Variable :id {: GenCod.Double(id,"+",true); :}
+				|
+				DMENOS Variable:id {: GenCod.Double(id,"-",true); :}
+				|
+				Variable:id DMENOS  {: GenCod.Double(id,"-",false); :}
+				|
+				NOT Expresion:exp	{: RESULT=GenCod.Up(exp); :}
+				|
+				CAMBIO Expresion:exp	{: RESULT=GenCod.Change(exp); :}
+				;
+				
+Condicion ::=	Expresion:e1 EQ Expresion:e2 {:	RESULT = GenCod.condicion(e1,If.EQ,e2);	:}		
+				|
+				Expresion:e1 NEQ Expresion:e2 {: RESULT = GenCod.condicion(e1,If.NEQ,e2); :}
+				|
+				Expresion:e1 LT Expresion:e2 {: RESULT = GenCod.condicion(e1,If.LT,e2); :}
+				|
+				Expresion:e1 LE Expresion:e2 {: RESULT = GenCod.condicion(e1,If.LTE,e2); :}
+				|
+				Expresion:e1 GT Expresion:e2 {: RESULT = GenCod.condicion(e1,If.GT,e2); :}
+				|
+				Expresion:e1 GE Expresion:e2 {: RESULT = GenCod.condicion(e1,If.GTE,e2); :}
+				|
+				NOT Condicion:c 
+				{:
+				String temp = c.v();
+				c.setV(c.f());
+				c.setF(temp);
+				RESULT = c;
+				:}
+				|
+				Condicion:c AND {: GenCod.label(c.v()); :}
+				Condicion:d 
+				{: RESULT=d; 
+				   GenCod.label(c.f());
+				   GenCod.goTo(d.f());
+				:}
+				|
+				Condicion:c OR {: GenCod.label(c.f()); :} 
+				Condicion:d 
+				{: RESULT=d; 
+				   GenCod.label(c.v()); 
+				   GenCod.goTo(d.v());
+				:}
+				|
+				AP Condicion:c CP {: RESULT=c; :} 
+				;
+				

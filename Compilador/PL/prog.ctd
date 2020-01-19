@@ -1,0 +1,11 @@
+x = 3;
+y = 2;
+z;
+z = 1;
+if (x == y) goto L0;
+goto L1;
+label L1;
+$t0 = x + 1;
+x = $t0;
+label L0;
+print x;

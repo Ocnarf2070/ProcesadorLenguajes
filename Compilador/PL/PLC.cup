@@ -1,0 +1,135 @@
+
+import java_cup.runtime.*;
+
+action code {:
+	private static class Expr{
+		private String str;
+		private String valor;
+		public Expr (String a, String b){
+			str=a;
+			valor=b;
+		}
+		public String str() {
+			return str;
+		}
+		public String valor() {
+			return valor;
+		}		 
+	}
+	private static class Cond{
+		private String str;
+		private String et1;
+		private String et2;
+		public Cond (String a,String b,String c){
+			str=a;
+			et1=b;
+			et2=c;
+		}
+		public String str() {
+			return str;
+		}
+		public String et1() {
+			return et1;
+		}
+		public String et2() {
+			return et2;
+		}
+	}
+	static int contador = 0;
+	static int num = 0;
+:}
+
+/* Terminals (tokens returned by the scanner). */
+terminal IF, ELSE, DO, WHILE, FOR, PRINT;
+terminal MAS, MENOS, POR, DIV, UMENOS;
+terminal AP, CP, AC, CC;	
+terminal IGUAL, PYC;
+terminal NOT, EQ, NEQ, LE, GE, LT, GT, AND, OR;
+terminal String   ENTERO;
+terminal String	   IDENT;
+terminal EPSILON;
+
+/* Non-terminals */
+non terminal 			s;
+non terminal String     Lista_de_sent;
+non terminal String     Sentencia, parteELSE;
+non terminal Cond		Condicion;
+non terminal Expr		Expresion;
+
+/* Precedences */
+precedence right EPSILON;
+precedence right ELSE;
+precedence right OR; 
+precedence right AND;
+precedence nonassoc EQ, NEQ, LE, GE, LT, GT;
+precedence left MAS, MENOS;
+precedence left POR, DIV;
+precedence left UMENOS;
+
+/* The grammar */
+s ::= Lista_de_sent:lsen	{: RESULT = lsen; :} | error;
+Lista_de_sent ::= 	Sentencia:sent {: RESULT = sent; :}
+					|
+					Lista_de_sent:lsent Sentencia:sent {: RESULT = lsent+sent; :}
+					;
+Sentencia ::=	Expresion:expr PYC {: RESULT = expr.str()+";\n"; :} 
+				|
+				IF AP Condicion:cond CP Sentencia:sent parteELSE:els
+				{: RETURN = "if ("+cond.nCond()+") goto L"+num+";\n"+sent+els; :}
+				|
+				WHILE AP Condicion CP Sentencia
+				|
+				DO Sentencia WHILE AP Condicion CP PYC
+				|
+				FOR AP Expresion PYC Condicion PYC Expresion CP Sentencia
+				|
+				PRINT AP Expresion:expr CP PYC {: RESULT = "print "+expr.valor()+";"; :}
+				|
+				AC Lista_de_sent:lsent CC {: RESULT = lsent; :}
+				;
+parteELSE ::= 	//Epsilon {: RESULT = "";:}
+				%prec EPSILON
+				|
+				ELSE Sentencia:sent
+				{: RESULT = "L"+(num)+":\n"+sent+"L"+(num); num++; :}
+				;
+Expresion ::=	Expresion MAS Expresion
+				|
+				Expresion MENOS Expresion
+				|
+				Expresion POR Expresion
+				|
+				Expresion DIV Expresion
+				|
+				MENOS Expresion
+				%prec UMENOS
+				|
+				AP Expresion CP
+				|
+				IDENT:id IGUAL Expresion:expr {: RESULT=new Expr(id+" = "+expr.valor(),id); :}
+				|
+				IDENT:id {: RESULT=new Expr(null,id); :}
+				|
+				ENTERO:num {: RESULT=new Expr(null,num); :}
+				;
+Condicion ::=	Expresion EQ Expresion
+				|
+				Expresion NEQ Expresion
+				|
+				Expresion LT Expresion
+				|
+				Expresion LE Expresion
+				|
+				Expresion GT Expresion
+				|
+				Expresion GE Expresion
+				|
+				NOT Condicion
+				|
+				Condicion AND Condicion
+				|
+				Condicion OR Condicion
+				|
+				AP Condicion CP
+				;
+				

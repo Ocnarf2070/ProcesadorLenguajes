@@ -1,0 +1,12 @@
+if (x == 0) {
+ y = 12;
+ if (y + 2 == 0) {
+ print(y);
+ z = 7;
+ print(z);
+ } else {
+ print(y);
+ }
+ print(y);
+}
+print(x);

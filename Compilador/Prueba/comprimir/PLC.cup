@@ -1,0 +1,185 @@
+
+import java_cup.runtime.*;
+
+action code {:
+	private static int contador=0;
+	private static String temporal(){
+		String temporal = "t"+contador;
+		contador++;
+		return temporal;
+	}
+	private static boolean not=false;
+:}
+
+/* Terminals (tokens returned by the scanner). */
+terminal IF, ELSE, DO, WHILE, FOR, PRINT;
+terminal MAS, MENOS, POR, DIV, UMENOS;
+terminal AP, CP, AL, CL;	
+terminal IGUAL, PYC;
+terminal NOT, EQ, NEQ, LE, GE, LT, GT, AND, OR;
+terminal String   ENTERO;
+terminal String	   IDENT;
+terminal EPSILON;
+
+/* Non-terminals */
+non terminal 				s;
+non terminal 		     	Sentencia, Lista_de_sent;
+non terminal 		     	parteELSE;
+non terminal EtiquetaDoble	Condicion,ADo,AWhile,Apyc;
+non terminal String			Expresion;
+
+/* Precedences */
+precedence right EPSILON;
+precedence right ELSE;
+precedence right OR; 
+precedence right AND;
+precedence nonassoc EQ, NEQ, LE, GE, LT, GT;
+precedence left MAS, MENOS;
+precedence left POR, DIV;
+precedence left UMENOS;
+
+/* The grammar */
+s ::= Lista_de_sent | error;
+Lista_de_sent ::= 	//Epsilon
+					%prec EPSILON
+					|
+					Sentencia
+					|
+					Lista_de_sent Sentencia
+					;
+Sentencia ::=	Expresion PYC  
+				|
+				IF AP Condicion:cond {: PLC.gc("LABEL",null,null,cond.v(not)); :}
+				CP Sentencia {: PLC.gc("LABEL",null,null,cond.f(not)); :}
+				parteELSE
+				|
+				AWhile:awhile {: PLC.gc("LABEL",null,null,awhile.v(false)); :}
+				AP Condicion:c CP {: PLC.gc("LABEL",null,null,c.v(not)); :}
+				Sentencia
+				{: PLC.gc("GOTO",null,null,awhile.v(false));
+				   PLC.gc("LABEL",null,null,c.f(not));
+				:}
+				|
+				ADo:ado {: PLC.gc("LABEL",null,null,ado.v(false)); :} 
+				Sentencia WHILE AP Condicion:c CP PYC
+				{: PLC.gc("LABEL",null,null,c.v(not));
+				   PLC.gc("GOTO",null,null,ado.v(false));
+				   PLC.gc("LABEL",null,null,c.f(not));
+				:}
+				|
+				FOR AP Expresion Apyc:pyc1 {: PLC.gc("LABEL",null,null,pyc1.v(false)); :}
+				Condicion:c Apyc:pyc2 {: PLC.gc("LABEL",null,null,pyc2.v(false)); :}
+				Expresion CP 
+				{: PLC.gc("GOTO",null,null,pyc1.v(false));
+				   PLC.gc("LABEL",null,null,c.v(not));
+				:}
+				Sentencia
+				{: PLC.gc("GOTO",null,null,pyc2.v(false));
+				   PLC.gc("LABEL",null,null,c.f(not));
+				:}
+				|
+				PRINT AP Expresion:expr CP PYC {: PLC.gc("PRINT",expr,null,null); :}
+				|
+				AL Lista_de_sent CL
+				;
+Apyc ::= PYC {: RESULT=new EtiquetaDoble(1); :} ;
+ADo ::= DO {: RESULT=new EtiquetaDoble(1); :} ;
+AWhile ::= WHILE {: RESULT=new EtiquetaDoble(1); :} ;
+parteELSE ::= 	//Epsilon
+				%prec EPSILON
+				|
+				ELSE Sentencia
+				;
+Expresion ::=	Expresion:exp1 MAS Expresion:exp2 
+				{: 	RESULT = temporal();
+					PLC.gc("MAS",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 MENOS Expresion:exp2
+				{: 	RESULT = temporal();
+					PLC.gc("MENOS",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 POR Expresion:exp2
+				{: 	RESULT = temporal();
+					PLC.gc("POR",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 DIV Expresion:exp2
+				{: 	RESULT = temporal();
+					PLC.gc("DIV",exp1,exp2,RESULT);
+				:}
+				|
+				MENOS Expresion:exp 
+				{: 	RESULT = temporal();
+					PLC.gc("MENOS","0",exp,RESULT);
+				:}
+				%prec UMENOS
+				|
+				AP Expresion:exp CP {: RESULT=exp; :}
+				|
+				IDENT:id IGUAL Expresion:expr {: PLC.gc("ASIG",expr,null,id); RESULT=id; :}
+				|
+				IDENT:id {: RESULT=id; :}
+				|
+				ENTERO:num {: RESULT=num; :}
+				;
+Condicion ::=	Expresion:e1 EQ Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLC.gc("GOTO",null,null,RESULT.f(not));
+				:}		
+				|
+				Expresion:e1 NEQ Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					String v="", f="";
+					PLC.gc("IFEQ",e1,e2,RESULT.f(not));
+					PLC.gc("GOTO",null,null,RESULT.v(not));
+				:}		
+				|
+				Expresion:e1 LT Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLC.gc("IFLT",e1,e2,RESULT.v(not));
+					PLC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 LE Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLC.gc("IFLT",e1,e2,RESULT.v(not));
+					PLC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 GT Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLC.gc("IFLT",e2,e1,RESULT.v(not));
+					PLC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 GE Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLC.gc("IFLT",e2,e1,RESULT.v(not));
+					PLC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				NOT {: not=true; :} 
+				Condicion {: not=false; :}
+				|
+				Condicion:c AND {: PLC.gc("LABEL",null,null,c.v(not)); :}
+				Condicion:d 
+				{: RESULT=d; 
+				   PLC.gc("LABEL",null,null,c.f(not));
+				   PLC.gc("GOTO",null,null,d.f(not));
+				:}
+				|
+				Condicion:c OR {: PLC.gc("LABEL",null,null,c.f(not)); :} 
+				Condicion:d 
+				{: RESULT=d; 
+				   PLC.gc("LABEL",null,null,c.v(not)); 
+				   PLC.gc("GOTO",null,null,d.v(not));
+				:}
+				|
+				AP Condicion:c CP {: RESULT=c; :} 
+				;
+				

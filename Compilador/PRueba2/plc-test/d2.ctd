@@ -1,0 +1,27 @@
+   a = 3;
+   b = 12;
+   if (a < 1) goto L1;
+   goto L0;
+L0:
+   if (5 < a) goto L3;
+   goto L2;
+L1:
+   goto L3;
+L3:
+   b = a;
+   if (10 < b) goto L4;
+   goto L5;
+L2:
+   goto L4;
+L5:
+   if (b == a) goto L6;
+   goto L7;
+L4:
+   goto L7;
+L7:
+   a = b;
+   goto L8;
+L6:
+L8:
+   $t0 = a * b;
+   print $t0;

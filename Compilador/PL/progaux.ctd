@@ -1,0 +1,17 @@
+   x = 3;
+   y = 2;
+   z = 1;
+   if (x == y) goto L0;
+   goto L1;
+L0:
+   if (y == z) goto L2;
+   goto L3;
+L1:
+   goto L3;
+L2:
+   $t0 = x + 1;
+   x = $t0;
+   goto L4;
+L3:
+L4:
+   print x;

@@ -1,0 +1,23 @@
+package prueba;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.Scanner;
+
+public class prueba {
+public static void main(String[] args) throws FileNotFoundException {
+	File texto = new File("lel.txt");
+	PrintWriter pw = new PrintWriter(texto);
+	pw.println("Habia una vez un señor mayor");
+	pw.println("que tankeaba como un proazo");
+	pw.close();
+	Scanner sc = new Scanner(texto);
+	PrintWriter pd = new PrintWriter(texto);
+	while(sc.hasNextLine()) {
+		Scanner ss = new Scanner(sc.nextLine());
+		while (ss.hasNext()) pd.println(ss.next());
+	}
+	pd.close();
+}
+}

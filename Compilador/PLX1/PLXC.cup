@@ -1,0 +1,312 @@
+
+import java_cup.runtime.*;
+import java.util.*;
+
+action code {:
+	TablaDeSimbolos tb = new TablaDeSimbolos();
+	TablaSimboloCont tbc = new TablaSimboloCont();
+	private static int contador=0;
+	private static String temporal(){
+		String temporal = "t"+contador;
+		contador++;
+		return temporal;
+	}
+	private boolean not=false;
+	private boolean normal=false;
+	private boolean llaves=false;
+:}
+
+/* Terminals (tokens returned by the scanner). */
+terminal INT;
+terminal IF, ELSE, DO, WHILE, FOR, TO, DOWNTO, STEP, PRINT;
+terminal MAS, MENOS, POR, DIV, UMENOS,MOD, DMAS,DMENOS;
+terminal AP, CP, AL, CL;	
+terminal IGUAL, PYC, COMA;
+terminal NOT, EQ, NEQ, LE, GE, LT, GT, AND, OR;
+terminal String   ENTERO;
+terminal String	   IDENT;
+terminal EPSILON;
+
+/* Non-terminals */
+non terminal 				Programa;
+non terminal 		     	Sentencia, Lista_de_sent,Sentencia_comp,Sentencia_simp;
+non terminal 		     	parteELSE;
+non terminal EtiquetaDoble	Condicion,ADo,AWhile,AFor;
+non terminal String			Expresion, ExpresionAsig;
+non terminal Tipo			List_declar_var, Tipo;
+non terminal Tuple2<Boolean,EtiquetaDoble> Modo;
+non terminal String		Pasos,Variable;
+
+/* Precedences */
+precedence right EPSILON;
+precedence right ELSE;
+precedence right OR; 
+precedence right AND;
+precedence nonassoc EQ, NEQ, LE, GE, LT, GT;
+precedence left MAS, MENOS;
+precedence left POR, DIV,MOD;
+precedence left UMENOS;
+
+/* The grammar */
+Programa ::= Lista_de_sent | error {: PLXC.gc("ERROR",null,null,null); :} ;
+Lista_de_sent ::= 	//Epsilon
+					%prec EPSILON
+					|
+					Lista_de_sent Sentencia
+					;
+Sentencia ::=	Sentencia_simp | Sentencia_comp ;
+Sentencia_comp ::= 	AL {: tb.NuevoBloque(); :}
+					Lista_de_sent 
+					CL 
+					{:
+					Set<String> set=tb.lexemas();
+					for(String sb: set)tbc.addOrUpdate(sb,false);
+					tb.FinBloque();
+					:}
+					;
+Sentencia_simp ::=	
+				List_declar_var PYC
+				|
+				Expresion PYC  
+				|//sent_if
+				IF AP Condicion:cond {: PLXC.gc("LABEL",null,null,cond.v(not)); :}
+				CP Sentencia {: PLXC.gc("LABEL",null,null,cond.f(not)); :}
+				parteELSE
+				|//Sent_while
+				AWhile:awhile {: PLXC.gc("LABEL",null,null,awhile.v(false)); :}
+				AP Condicion:c CP {: PLXC.gc("LABEL",null,null,c.v(not)); :}
+				Sentencia
+				{: PLXC.gc("GOTO",null,null,awhile.v(false));
+				   PLXC.gc("LABEL",null,null,c.f(not));
+				:}
+				|//Sent_do_while
+				ADo:ado {: PLXC.gc("LABEL",null,null,ado.v(false)); :} 
+				Sentencia WHILE AP Condicion:c CP PYC
+				{: PLXC.gc("LABEL",null,null,c.v(not));
+				   PLXC.gc("GOTO",null,null,ado.v(false));
+				   PLXC.gc("LABEL",null,null,c.f(not));
+				:}
+				|//Sent_for
+				AFor:f AP Expresion PYC {: PLXC.gc("LABEL",null,null,f.v(false)); :}
+				Condicion:c PYC {: PLXC.gc("LABEL",null,null,f.f(false)); :}
+				Expresion CP 
+				{: PLXC.gc("GOTO",null,null,f.v(false));
+				   PLXC.gc("LABEL",null,null,c.v(not));
+				:}
+				Sentencia
+				{: PLXC.gc("GOTO",null,null,f.f(false));
+				   PLXC.gc("LABEL",null,null,c.f(not));
+				:}
+				|//Sent_for_to
+				AFor:f Expresion:exp1 Modo:m Expresion:exp2
+				{:
+				PLXC.gc("LABEL",null,null,f.v(false));
+				if(m._1()) PLXC.gc("IFLT",exp2,exp1,m._2().f(false));
+				else PLXC.gc("IFLT",exp1,exp2,m._2().f(false));
+				PLXC.gc("GOTO",null,null,m._2().v(false));
+				PLXC.gc("LABEL",null,null,f.f(false));
+				:}
+				Pasos:num
+				{:
+				String paso = num==null?"1":num;
+				if(m._1())PLXC.gc("MAS",exp1,paso,exp1);
+				else PLXC.gc("MENOS",exp1,paso,exp1);
+				PLXC.gc("GOTO",null,null,f.v(false));
+				PLXC.gc("LABEL",null,null,m._2().v(false));
+				:}
+				DO Sentencia
+				{:
+				PLXC.gc("GOTO",null,null,f.f(false));
+				PLXC.gc("LABEL",null,null,m._2().f(false) );
+				:}
+				|//Sent_print
+				PRINT AP Expresion:expr CP PYC {: PLXC.gc("PRINT",expr,null,null); :}
+				;	
+	
+List_declar_var ::= Tipo:type ExpresionAsig:id
+					{:
+					RESULT = type;
+					tb.add(id,type);
+					normal=false;
+					:}
+					|
+					List_declar_var:type COMA {: normal=true; :} ExpresionAsig:id
+					{:
+					if(tb.search(id)==null){
+					RESULT = type;
+					tb.add(id,type);
+					}
+					else PLXC.gc("ERROR",null,null,null);
+					normal=false;
+					:}
+					;
+Tipo ::=	INT {: normal=true; RESULT=new Tipo(Tipo.INT); :}	;
+Modo ::= TO	
+		{:
+		RESULT = new Tuple2(true,new EtiquetaDoble(2));
+		:} 
+		| DOWNTO 
+		{:
+		RESULT = new Tuple2(false,new EtiquetaDoble(2));
+		:} 
+		;
+		
+ADo ::= DO {: RESULT=new EtiquetaDoble(1); :} ;
+AWhile ::= WHILE {: RESULT=new EtiquetaDoble(1); :} ;
+AFor ::= FOR {: RESULT=new EtiquetaDoble(2); :} ;
+Pasos ::= //Epsilon
+		| 
+		STEP Expresion:exp {: RESULT=exp; :} 
+		;
+parteELSE ::= 	//Epsilon
+				%prec EPSILON
+				|
+				ELSE Sentencia
+				;
+
+ExpresionAsig ::= Variable:id IGUAL Expresion:expr {: PLXC.gc("ASIG",expr,null,id); RESULT=id; :} |	Variable:id {: RESULT=id; :} ;
+Variable ::= IDENT:id 
+				{: String num = "";
+					if(!normal){
+						Simbolo sb = tb.search(id);
+						if(sb==null){
+							PLXC.gc("ERROR",null,null,null);
+						}
+		 			if(tbc.search(id)<2)num=id;
+					else {
+						num=id+"_"+Integer.toString(tbc.search(id)-1);
+						
+					}
+					}else{
+					tbc.addOrUpdate(id, true);
+					num=id;
+					}
+					RESULT=num;
+				:} ;
+Expresion ::=	ExpresionAsig: exp {: RESULT=exp; :}
+				|
+				Expresion:exp1 MAS Expresion:exp2 
+				{: 	RESULT = temporal();
+					PLXC.gc("MAS",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 MENOS Expresion:exp2
+				{: 	RESULT = temporal();
+					PLXC.gc("MENOS",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 POR Expresion:exp2
+				{: 	RESULT = temporal();
+					PLXC.gc("POR",exp1,exp2,RESULT);
+				:}
+				|
+				Expresion:exp1 DIV Expresion:exp2
+				{: 	RESULT = temporal();
+					PLXC.gc("DIV",exp1,exp2,RESULT);
+				:}
+				|
+				MENOS Expresion:exp 
+				{: 	RESULT = temporal();
+					PLXC.gc("MENOS","0",exp,RESULT);
+				:}
+				%prec UMENOS
+				|
+				Expresion:exp1 MOD Expresion:exp2
+				{: String tn=temporal();
+				   PLXC.gc("DIV",exp1,exp2,tn);
+				   String tn2=temporal();
+				   PLXC.gc("POR",tn,exp2,tn2);
+				   RESULT = temporal();
+				   PLXC.gc("MENOS",exp1,tn2,RESULT);				   				
+				:}
+				|
+				AP Expresion:exp CP {: RESULT=exp; :}
+				|
+				ENTERO:num {: RESULT=num; :}
+				|
+				Variable:id DMAS
+				{: 
+				RESULT = temporal();
+				PLXC.gc("ASIG",id,null,RESULT);
+				PLXC.gc("MAS",id,"1",id);
+				:}
+				|
+				DMAS Variable :id
+				{:  
+				RESULT = id;
+				PLXC.gc("MAS",id,"1",id);
+				:}
+				|
+				DMENOS Variable:id
+				{:  
+				RESULT = id;
+				PLXC.gc("MENOS",id,"1",id);
+				:}
+				|
+				Variable:id DMENOS 
+				{: 
+				RESULT = temporal();
+				PLXC.gc("ASIG",id,null,RESULT);
+				PLXC.gc("MENOS",id,"1",id);
+				:}
+				;
+				
+Condicion ::=	Expresion:e1 EQ Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLXC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLXC.gc("GOTO",null,null,RESULT.f(not));
+				:}		
+				|
+				Expresion:e1 NEQ Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					String v="", f="";
+					PLXC.gc("IFEQ",e1,e2,RESULT.f(not));
+					PLXC.gc("GOTO",null,null,RESULT.v(not));
+				:}		
+				|
+				Expresion:e1 LT Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLXC.gc("IFLT",e1,e2,RESULT.v(not));
+					PLXC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 LE Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLXC.gc("IFLT",e1,e2,RESULT.v(not));
+					PLXC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLXC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 GT Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLXC.gc("IFLT",e2,e1,RESULT.v(not));
+					PLXC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				Expresion:e1 GE Expresion:e2
+				{:	RESULT = new EtiquetaDoble(2);
+					PLXC.gc("IFLT",e2,e1,RESULT.v(not));
+					PLXC.gc("IFEQ",e1,e2,RESULT.v(not));
+					PLXC.gc("GOTO",null,null,RESULT.f(not));
+				:}
+				|
+				NOT {: not=true; :} 
+				Condicion {: not=false; :}
+				|
+				Condicion:c AND {: PLXC.gc("LABEL",null,null,c.v(not)); :}
+				Condicion:d 
+				{: RESULT=d; 
+				   PLXC.gc("LABEL",null,null,c.f(not));
+				   PLXC.gc("GOTO",null,null,d.f(not));
+				:}
+				|
+				Condicion:c OR {: PLXC.gc("LABEL",null,null,c.f(not)); :} 
+				Condicion:d 
+				{: RESULT=d; 
+				   PLXC.gc("LABEL",null,null,c.v(not)); 
+				   PLXC.gc("GOTO",null,null,d.v(not));
+				:}
+				|
+				AP Condicion:c CP {: RESULT=c; :} 
+				;
+				

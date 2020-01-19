@@ -1,0 +1,22 @@
+	error;
+	halt;
+   if (x == 0) goto L1;
+   goto L2;
+L1:
+	y = 12;
+	$t0 = y + 2;
+   if ($t0 == 14) goto L4;
+   goto L5;
+L4:
+	print y;
+	z = 7;
+	print z;
+	goto L3;
+L5:
+	print y;
+L3:
+	print y;
+	goto L0;
+L2:
+L0:
+	print x;

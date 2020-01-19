@@ -1,0 +1,16 @@
+   x = 2;
+   y = 9;
+   z = 3;
+L0:
+   if (x < y) goto L1;
+   goto L2;
+L2:
+   if (z < x) goto L3;
+   goto L4;
+L1:
+   goto L3;
+L3:
+   $t0 = x + 1;
+   x = $t0;
+   goto L0;
+L4:
